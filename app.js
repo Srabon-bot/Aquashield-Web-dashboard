@@ -569,8 +569,25 @@ function updateSensorAlertBanner(statuses) {
 
 async function pollSensorsAndPumps() {
   try {
-    const [sensor, pumps] = await Promise.all([fbGet("sensor"), fbGet("pumps")]);
+    let [sensor, pumps] = await Promise.all([fbGet("sensor"), fbGet("pumps")]);
     sensorPollFailures = 0;
+
+    // Check if the local ML backend is reachable (meaning the project is connected)
+    let isSystemConnected = false;
+    try {
+      const pingRes = await fetch(BAHADURABAD_API + "/api/v1/tds", { cache: 'no-store' });
+      if (pingRes.ok) isSystemConnected = true;
+    } catch (e) {
+      isSystemConnected = false;
+    }
+
+    // If not connected (e.g., viewing on Vercel), force sensor data to show 0
+    if (!isSystemConnected && sensor) {
+      sensor.ph = 0;
+      sensor.tds = 0;
+      sensor.temp = 0;
+      sensor.waterLevel = 0;
+    }
 
     updateSensorAlertBanner({
       ph: renderSensorTile("ph", sensor?.ph),
@@ -679,3 +696,4 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", upd
 loadBahadurabad();
 // Load Pond Water Quality AI models
 loadWaterQualityAI();
+
